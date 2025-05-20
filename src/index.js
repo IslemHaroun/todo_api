@@ -1,72 +1,42 @@
 const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
 const app = express();
-const PORT = 3000;
-
-console.log('🚀 Démarrage de l\'application...');
 
 app.use(express.json());
 
-// Stockage temporaire en mémoire
-let todos = [
-  { id: 1, title: 'Test task', description: 'Une tâche de test', done: false }
-];
-let nextId = 2;
+const db = new sqlite3.Database('./data/todo.db');
 
-app.get('/', (req, res) => {
-  res.json({ message: 'ToDo API is running!' });
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS todos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT,
+    description TEXT,
+    done BOOLEAN DEFAULT 0
+  )`);
 });
 
 app.get('/todos', (req, res) => {
-  console.log(`GET /todos - Returning ${todos.length} todos`);
-  res.json(todos);
-});
-
-app.post('/todos', (req, res) => {
-  const { title, description } = req.body;
-  
-  if (!title) {
-    return res.status(400).json({ error: 'Title is required' });
-  }
-  
-  const newTodo = {
-    id: nextId++,
-    title: title,
-    description: description || '',
-    done: false,
-    created_at: new Date().toISOString()
-  };
-  
-  todos.push(newTodo);
-  console.log(`POST /todos - Created todo with ID ${newTodo.id}`);
-  res.status(201).json(newTodo);
-});
-
-app.patch('/todos/:id/done', (req, res) => {
-  const id = parseInt(req.params.id);
-  const todo = todos.find(t => t.id === id);
-  
-  if (!todo) {
-    return res.status(404).json({ error: 'Todo not found' });
-  }
-  
-  todo.done = true;
-  console.log(`PATCH /todos/${id}/done - Marked as done`);
-  res.json(todo);
-});
-
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'UP',
-    todos_count: todos.length,
-    timestamp: new Date().toISOString()
+  db.all("SELECT * FROM todos", (err, rows) => {
+    if (err) return res.status(500).json({error: err.message});
+    res.json(rows);
   });
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ Serveur démarré sur le port ${PORT}`);
+app.post('/todos', (req, res) => {
+  db.run("INSERT INTO todos (title, description) VALUES (?, ?)", 
+    [req.body.title, req.body.description || ''], 
+    function(err) {
+      if (err) return res.status(500).json({error: err.message});
+      res.status(201).json({id: this.lastID, ...req.body, done: false});
+    }
+  );
 });
 
-process.on('SIGINT', () => {
-  console.log('\n🛑 Arrêt du serveur...');
-  process.exit(0);
+app.patch('/todos/:id/done', (req, res) => {
+  db.run("UPDATE todos SET done = 1 WHERE id = ?", [req.params.id], function(err) {
+    if (err) return res.status(500).json({error: err.message});
+    res.json({id: req.params.id, done: true});
+  });
 });
+
+app.listen(3000, () => console.log('Server running'));
