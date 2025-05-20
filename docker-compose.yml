@@ -19,7 +19,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-    command: pm2-runtime ecosystem.config.js
+    command: node src/index.js
 
   redis:
     image: redis:7-alpine
