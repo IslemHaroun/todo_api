@@ -1,16 +1,17 @@
 const express = require('express');
+const compression = require('compression');
 const sqlite3 = require('sqlite3').verbose();
 const cache = require('./services/cache.service');
 const client = require('prom-client');
 const app = express();
 
 app.use(express.json());
+app.use(compression()); // ← RÉACTIVÉ
 
 // Métriques Prometheus
 const register = new client.Registry();
 client.collectDefaultMetrics({ register });
 
-// Métriques simples
 const httpRequests = new client.Counter({
   name: 'todo_http_requests_total',
   help: 'Total HTTP requests',
@@ -18,7 +19,6 @@ const httpRequests = new client.Counter({
   registers: [register]
 });
 
-// Middleware simple de comptage
 app.use((req, res, next) => {
   res.on('finish', () => {
     httpRequests.inc({ method: req.method, status: res.statusCode });
@@ -37,12 +37,11 @@ db.serialize(() => {
   )`);
 });
 
-// Routes existantes...
 app.get('/todos', async (req, res) => {
   try {
     const cachedTodos = await cache.get('all-todos');
     if (cachedTodos) {
-      console.log(`✅ Cache HIT on worker ${process.pid}`);
+      console.log(`✅ GZIP ON - Cache HIT on worker ${process.pid}`);
       return res.json(cachedTodos);
     }
     
@@ -50,7 +49,7 @@ app.get('/todos', async (req, res) => {
       if (err) return res.status(500).json({error: err.message});
       
       await cache.set('all-todos', rows, 30);
-      console.log(`✅ Cache MISS -> SET on worker ${process.pid}`);
+      console.log(`✅ GZIP ON - Cache MISS -> SET on worker ${process.pid}`);
       
       res.json(rows);
     });
@@ -80,14 +79,13 @@ app.patch('/todos/:id/done', async (req, res) => {
   });
 });
 
-// Endpoint des métriques
 app.get('/metrics', async (req, res) => {
   res.set('Content-Type', register.contentType);
   res.end(await register.metrics());
 });
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'UP', worker: process.pid });
+  res.json({ status: 'UP', worker: process.pid, compression: 'GZIP' });
 });
 
-app.listen(3000, () => console.log(`✅ Worker ${process.pid} with simple metrics started`));
+app.listen(3000, () => console.log(`✅ Worker ${process.pid} WITH gzip compression started`));
