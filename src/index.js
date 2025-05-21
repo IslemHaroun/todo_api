@@ -13,6 +13,12 @@ db.serialize(() => {
     description TEXT,
     done BOOLEAN DEFAULT 0
   )`);
+  
+  // Ajouter l'index pour optimiser les requêtes sur done
+  db.run(`CREATE INDEX IF NOT EXISTS idx_todos_done ON todos(done)`, (err) => {
+    if (err) console.error('Index creation error:', err);
+    else console.log('✅ Index on done column ready');
+  });
 });
 
 app.get('/todos', (req, res) => {
@@ -39,4 +45,4 @@ app.patch('/todos/:id/done', (req, res) => {
   });
 });
 
-app.listen(3000, () => console.log('Server running'));
+app.listen(3000, () => console.log('✅ Server with SQLite + Index started'));
