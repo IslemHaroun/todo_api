@@ -19,7 +19,6 @@ services:
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
-    command: node src/index.js
 
   redis:
     image: redis:7-alpine

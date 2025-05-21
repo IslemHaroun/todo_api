@@ -14,11 +14,8 @@ db.serialize(() => {
     done BOOLEAN DEFAULT 0
   )`);
   
-  // Ajouter l'index pour optimiser les requêtes sur done
-  db.run(`CREATE INDEX IF NOT EXISTS idx_todos_done ON todos(done)`, (err) => {
-    if (err) console.error('Index creation error:', err);
-    else console.log('✅ Index on done column ready');
-  });
+  // SUPPRIMER l'index qui dégradait les performances
+  // db.run(`CREATE INDEX IF NOT EXISTS idx_todos_done ON todos(done)`);
 });
 
 app.get('/todos', (req, res) => {
@@ -45,4 +42,4 @@ app.patch('/todos/:id/done', (req, res) => {
   });
 });
 
-app.listen(3000, () => console.log('✅ Server with SQLite + Index started'));
+app.listen(3000, () => console.log(`✅ Worker ${process.pid} started on port 3000`));
